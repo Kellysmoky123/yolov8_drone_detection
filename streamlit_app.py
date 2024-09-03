@@ -1,18 +1,16 @@
 import streamlit as st
 from ultralytics import YOLO
 import tempfile
+import cv2
 import numpy as np
 import os
 from PIL import Image
-from moviepy.editor import VideoFileClip, ImageSequenceClip
 
-# Load YOLOv8 model
 model = YOLO('best.pt')
 
 st.title("Drone Detection using YOLOv8")
 st.image('drone.jpg')
 st.write('Drones are becoming increasingly prevalent in various industries, including agriculture, logistics, surveillance, and entertainment. However, the rise in drone usage also brings concerns related to safety, privacy, and security. Effective drone detection is essential to identify and monitor unauthorized or potentially harmful drone activity in restricted or sensitive areas. By leveraging advanced machine learning models like YOLO, this model offers real-time drone detection capabilities, ensuring that any drone entering a monitored airspace can be quickly identified and responded to. This technology is crucial for safeguarding public spaces, critical infrastructure, and personal privacy.')
-
 uploaded_file = st.file_uploader("Choose an image or video file", type=["jpg", "jpeg", "png", "mp4", "avi", "mov"])
 
 if uploaded_file is not None:
@@ -20,7 +18,7 @@ if uploaded_file is not None:
     if uploaded_file.type in ["image/jpeg", "image/png", "image/jpg"]:
         image = Image.open(uploaded_file)
         st.image(image, caption="Uploaded Image", use_column_width=True)
-        with st.spinner("Processing Image. Please wait."):
+        with st.spinner("Proccessing Image. Please wait.") :
             img_array = np.array(image)
             results = model(img_array, conf=0.45)
             annotated_image = results[0].plot()
@@ -30,35 +28,43 @@ if uploaded_file is not None:
     elif uploaded_file.type in ["video/mp4", "video/avi", "video/mov"]:
         tfile = tempfile.NamedTemporaryFile(delete=False)
         tfile.write(uploaded_file.read())
-        tfile.seek(0)
 
-        # Open the video file with MoviePy
-        video = VideoFileClip(tfile.name)
+        # Open the video file
+        cap = cv2.VideoCapture(tfile.name)
 
-        # Initialize the progress bar
-        progress_text='Processing Video. Please wait.'
-        progress = st.progress(0,progress_text)
-        frame_count = video.reader.nframes
+        # Get video properties
+        width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        fps = cap.get(cv2.CAP_PROP_FPS)
 
-        # Create a list to hold the processed frames
-        annotated_frames = []
+        # Check if the video was opened successfully
+        if not cap.isOpened():
+            st.error("Could not open the video file.")
+        else:
+            # Temporary file to save the processed video
+            output_file = tempfile.NamedTemporaryFile(delete=False, suffix='.webm')
 
-        # Process each frame and update the progress bar
-        for i, frame in enumerate(video.iter_frames()):
-            results = model(frame, conf=0.45)
-            annotated_frame = results[0].plot()
-            annotated_frames.append(annotated_frame)
-            progress.progress((i + 1) / frame_count,progress_text)
+            # VideoWriter to save the processed video with VP8 encoding
+            fourcc = cv2.VideoWriter_fourcc(*'VP80')  # 'VP80' is the FourCC code for VP8
+            out = cv2.VideoWriter(output_file.name, fourcc, fps, (width, height))
 
-        # Create a video clip from the processed frames
-        annotated_video = ImageSequenceClip(annotated_frames, fps=video.fps)
+            frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+            progress = st.progress(0,'Operation in progress. Please wait.')
 
-        # Save the processed video to a temporary file
-        output_file = tempfile.NamedTemporaryFile(delete=False, suffix='.webm')
-        annotated_video.write_videofile(output_file.name, codec='libvpx')
+            # Process each frame
+            for i in range(frame_count):
+                ret, frame = cap.read()
+                if not ret:
+                    break
+                results = model(frame, conf=0.45)
+                annotated_frame = results[0].plot()
+                out.write(annotated_frame)
+                progress.progress((i + 1) / frame_count)
 
-        st.video(output_file.name)
+            cap.release()
+            out.release()
 
-        # Cleanup
-        os.remove(tfile.name)
-        os.remove(output_file.name)
+            st.video(output_file.name)
+
+            os.remove(tfile.name)
+            os.remove(output_file.name)

@@ -17,6 +17,8 @@ if uploaded_file is not None:
     # Check if the uploaded file is an image
     if uploaded_file.type in ["image/jpeg", "image/png", "image/jpg"]:
         image = Image.open(uploaded_file)
+        if image.mode!='RGB' :
+        	image=image.convert('RGB')
         col1 , col2 = st.columns(2)
         with col1 :
             st.image(image, caption="Uploaded Image", use_column_width=True)

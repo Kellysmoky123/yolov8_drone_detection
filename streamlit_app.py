@@ -49,7 +49,8 @@ if uploaded_file is not None:
             out = cv2.VideoWriter(output_file.name, fourcc, fps, (width, height))
 
             frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-            progress = st.progress(0,'Operation in progress. Please wait.')
+            progress_text='Processing Video. Please wait.'
+            progress = st.progress(0, progress_text)
 
             # Process each frame
             for i in range(frame_count):
@@ -59,7 +60,7 @@ if uploaded_file is not None:
                 results = model(frame, conf=0.45)
                 annotated_frame = results[0].plot()
                 out.write(annotated_frame)
-                progress.progress((i + 1) / frame_count)
+                progress.progress((i + 1) / frame_count, progress_text)
 
             cap.release()
             out.release()

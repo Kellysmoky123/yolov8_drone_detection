@@ -17,12 +17,15 @@ if uploaded_file is not None:
     # Check if the uploaded file is an image
     if uploaded_file.type in ["image/jpeg", "image/png", "image/jpg"]:
         image = Image.open(uploaded_file)
-        st.image(image, caption="Uploaded Image", use_column_width=True)
+        col1 , col2 = st.columns(2)
+        with col1 :
+            st.image(image, caption="Uploaded Image", use_column_width=True)
         with st.spinner("Proccessing Image. Please wait.") :
             img_array = np.array(image)
             results = model(img_array, conf=0.45)
             annotated_image = results[0].plot()
-        st.image(annotated_image, caption="Detected Objects", use_column_width=True)
+        with col2:
+            st.image(annotated_image, caption="Detected Objects", use_column_width=True)
 
     # Check if the uploaded file is a video
     elif uploaded_file.type in ["video/mp4", "video/avi", "video/mov"]:
